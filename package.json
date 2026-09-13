@@ -1,0 +1,38 @@
+{
+  "name": "driftline",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "dev:worker": "wrangler dev --test-scheduled",
+    "build": "tsc -b && vite build",
+    "check": "tsc -b && vitest run",
+    "test": "vitest run",
+    "types": "wrangler types worker-configuration.d.ts",
+    "deploy:dry": "npm run build && wrangler deploy --dry-run",
+    "deploy": "npm run build && wrangler deploy"
+  },
+  "dependencies": {
+    "@fontsource-variable/archivo": "latest",
+    "@fontsource/ibm-plex-mono": "latest",
+    "lucide-react": "latest",
+    "react": "latest",
+    "react-dom": "latest",
+    "web-push": "latest",
+    "zod": "latest"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-plugin": "latest",
+    "@types/node": "latest",
+    "@types/react": "latest",
+    "@types/react-dom": "latest",
+    "@types/web-push": "latest",
+    "@vitejs/plugin-react": "latest",
+    "sharp": "^0.35.4",
+    "typescript": "latest",
+    "vite": "latest",
+    "vitest": "latest",
+    "wrangler": "latest"
+  }
+}
