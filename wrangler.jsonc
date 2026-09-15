@@ -1,0 +1,48 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "driftline",
+  "account_id": "7e7ad11e97950b3eaf40c537fa40a8b5",
+  "workers_dev": true,
+  "preview_urls": false,
+  "main": "./worker/index.ts",
+  "compatibility_date": "2026-09-13",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "driftline-db",
+      "database_id": "81bafe6c-0188-4064-b483-b213773c99ae",
+      "migrations_dir": "./migrations"
+    }
+  ],
+  "dev": {
+    "ip": "127.0.0.1",
+    "port": 8787
+  },
+  "triggers": {
+    "crons": ["*/5 * * * *"]
+  },
+  "routes": [
+    {
+      "pattern": "driftline.alvinlabrador.dev",
+      "custom_domain": true
+    }
+  ],
+  "observability": {
+    "enabled": true,
+    "logs": {
+      "enabled": true,
+      "head_sampling_rate": 1
+    },
+    "traces": {
+      "enabled": true,
+      "head_sampling_rate": 0.05
+    }
+  }
+}
