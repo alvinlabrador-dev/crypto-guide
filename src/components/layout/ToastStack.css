@@ -1,0 +1,32 @@
+.toast-stack {
+  position: fixed;
+  z-index: 40;
+  right: 20px;
+  bottom: 20px;
+  width: min(360px, calc(100vw - 40px));
+  display: grid;
+  gap: 8px;
+}
+
+.toast {
+  padding: 13px 15px;
+  background: var(--ink);
+  color: var(--white);
+  box-shadow: 5px 5px 0 rgba(18, 51, 49, .25);
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  animation: toast-in .24s ease both;
+}
+
+.toast.error {
+  background: var(--coral-dark);
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}

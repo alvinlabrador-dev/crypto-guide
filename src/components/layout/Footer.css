@@ -1,0 +1,24 @@
+footer {
+  min-height: 74px;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  color: var(--ink-soft);
+  font-size: 9px;
+  font-family: "IBM Plex Mono", monospace;
+}
+
+footer span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+@media (max-width: 620px) {
+  footer {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 25px 0;
+    gap: 11px;
+  }
+}
