@@ -1,0 +1,231 @@
+.command-deck {
+  min-height: 382px;
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(300px, .55fr);
+  gap: 70px;
+  align-items: center;
+  border-bottom: 1px solid var(--line);
+}
+
+.command-copy h1 {
+  margin: 20px 0 19px;
+  font-size: clamp(45px, 5.5vw, 76px);
+  line-height: .94;
+  letter-spacing: -.057em;
+  font-weight: 640;
+  max-width: 760px;
+}
+
+.command-copy h1 span {
+  color: var(--sea);
+  font-weight: 480;
+}
+
+.lede {
+  color: var(--ink-soft);
+  font-size: 17px;
+  line-height: 1.55;
+  max-width: 590px;
+  margin: 0;
+}
+
+.sweep-panel {
+  min-height: 176px;
+  border: 1px solid var(--ink);
+  background: rgba(248, 251, 249, .74);
+  padding: 24px;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 17px;
+  box-shadow: 9px 9px 0 var(--sea-pale);
+}
+
+.sweep-orbit {
+  width: 56px;
+  height: 56px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  position: relative;
+  color: var(--coral);
+}
+
+.sweep-orbit::before {
+  content: "";
+  position: absolute;
+  inset: -8px;
+  border: 1px dashed var(--line);
+  border-radius: 50%;
+  animation: orbit 14s linear infinite;
+}
+
+.sweep-panel strong {
+  display: block;
+  font-size: 25px;
+  margin-top: 5px;
+  letter-spacing: -.03em;
+}
+
+.sweep-panel small {
+  color: var(--ink-soft);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 9px;
+  line-height: 1.5;
+  display: block;
+  margin-top: 4px;
+}
+
+.refresh-button {
+  grid-column: 1 / -1;
+  height: 39px;
+  border: 1px solid var(--line);
+  background: transparent;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.refresh-button:hover {
+  border-color: var(--sea);
+  color: var(--sea);
+}
+
+.status-strip {
+  min-height: 78px;
+  display: grid;
+  grid-template-columns: 150px 150px 150px 1fr;
+  align-items: center;
+  border-bottom: 1px solid var(--line);
+}
+
+.status-strip>div {
+  min-height: 42px;
+  height: auto;
+  border-right: 1px solid var(--line);
+  padding: 0 22px;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.status-strip>div:first-child {
+  padding-left: 0;
+}
+
+.status-strip span {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 9px;
+  letter-spacing: .11em;
+  color: var(--ink-soft);
+}
+
+.status-strip strong {
+  font-size: 27px;
+  font-weight: 520;
+  letter-spacing: -.04em;
+}
+
+.status-strip .has-signal strong {
+  color: var(--coral);
+}
+
+.status-strip .strip-action {
+  justify-content: flex-end;
+  border-right: 0;
+  padding-right: 0;
+}
+
+.text-action {
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.text-action.enabled {
+  color: var(--good);
+}
+
+@media (max-width: 900px) {
+  .command-deck {
+    grid-template-columns: 1fr;
+    gap: 30px;
+    padding: 70px 0 45px;
+  }
+
+  .sweep-panel {
+    max-width: 430px;
+  }
+
+  .status-strip {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .status-strip .strip-action {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+    height: 49px;
+    border-top: 1px solid var(--line);
+  }
+}
+
+@media (max-width: 620px) {
+  .command-deck {
+    min-height: auto;
+    padding: 50px 0 35px;
+  }
+
+  .command-copy h1 {
+    font-size: clamp(42px, 13vw, 60px);
+  }
+
+  .lede {
+    font-size: 14px;
+  }
+
+  .sweep-panel {
+    min-height: 164px;
+    padding: 20px;
+    box-shadow: 6px 6px 0 var(--sea-pale);
+  }
+
+  .status-strip {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .status-strip>div {
+    padding: 10px;
+    display: block;
+  }
+
+  .status-strip>div:first-child {
+    padding-left: 10px;
+    border-left: 1px solid var(--line);
+  }
+
+  .status-strip span,
+  .status-strip strong {
+    display: block;
+  }
+
+  .status-strip strong {
+    font-size: 22px;
+    margin-top: 4px;
+  }
+
+  .status-strip .strip-action {
+    padding-left: 0;
+    display: flex;
+  }
+}
