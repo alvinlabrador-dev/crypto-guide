@@ -1,0 +1,105 @@
+.history-section {
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  scroll-margin-top: 24px;
+}
+
+.history-section.flash {
+  animation: activity-flash 1.4s ease;
+}
+
+@keyframes activity-flash {
+  0%,
+  18% {
+    background: rgba(255, 114, 86, .14);
+  }
+
+  100% {
+    background: transparent;
+  }
+}
+
+.history-toggle {
+  width: 100%;
+  min-height: 68px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  padding: 0;
+}
+
+.history-toggle>span {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.history-toggle>span:last-child {
+  color: var(--ink-soft);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 9px;
+  font-weight: 400;
+}
+
+.history-section.open .history-toggle>span:last-child svg {
+  transform: rotate(90deg);
+}
+
+.event-list {
+  border-top: 1px solid var(--line);
+}
+
+.event-row {
+  display: grid;
+  grid-template-columns: 34px 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 3px;
+  border-bottom: 1px solid rgba(199, 214, 209, .7);
+}
+
+.event-icon {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--sea-pale);
+}
+
+.event-icon.type-buy_signal,
+.event-icon.type-sell_signal {
+  background: var(--coral);
+  color: white;
+}
+
+.event-row strong {
+  display: block;
+  font-size: 11px;
+  text-transform: capitalize;
+}
+
+.event-row small {
+  display: block;
+  color: var(--ink-soft);
+  font-size: 10px;
+  margin-top: 3px;
+}
+
+.event-row time {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 8px;
+  color: var(--ink-soft);
+}
+
+.event-empty {
+  border-top: 1px solid var(--line);
+  padding: 25px 0;
+  color: var(--ink-soft);
+  font-size: 12px;
+}

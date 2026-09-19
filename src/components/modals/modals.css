@@ -1,0 +1,409 @@
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(9, 34, 32, .58);
+  backdrop-filter: blur(5px);
+}
+
+.modal-sheet {
+  width: min(720px, 100%);
+  max-height: min(780px, calc(100vh - 40px));
+  overflow-y: auto;
+  background: var(--white);
+  border: 1px solid var(--ink);
+  box-shadow: 12px 12px 0 rgba(18, 51, 49, .23);
+}
+
+.modal-sheet.compact {
+  width: min(555px, 100%);
+}
+
+.modal-header {
+  padding: 24px 27px 20px;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.modal-header h2 {
+  margin: 7px 0 0;
+  font-size: 30px;
+  line-height: 1.05;
+  letter-spacing: -.04em;
+}
+
+.coin-picker,
+.rule-form {
+  padding: 24px 27px 27px;
+}
+
+.search-field {
+  height: 49px;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--ink);
+  padding: 0 14px;
+}
+
+.search-field input {
+  border: 0;
+  outline: 0;
+  background: transparent;
+  min-width: 0;
+}
+
+.search-field>span {
+  font-family: "IBM Plex Mono", monospace;
+  color: var(--ink-soft);
+  font-size: 8px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.search-results {
+  margin-top: 12px;
+  min-height: 230px;
+}
+
+.search-results>button {
+  width: 100%;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 9px;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.search-results>button:hover {
+  background: var(--paper);
+}
+
+.search-results img,
+.selected-coin img {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: var(--paper);
+}
+
+.search-results strong {
+  display: block;
+  font-size: 13px;
+}
+
+.search-results small,
+.selected-coin small {
+  display: block;
+  color: var(--ink-soft);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+}
+
+.search-results small {
+  display: block;
+  margin-top: 3px;
+}
+
+.search-hint {
+  min-height: 210px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 8px;
+  color: var(--ink-soft);
+  text-align: center;
+  font-size: 12px;
+}
+
+.selected-coin {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 11px;
+  padding: 12px;
+  background: var(--paper);
+  margin-bottom: 16px;
+}
+
+.selected-coin strong {
+  display: block;
+  font-size: 13px;
+}
+
+.selected-coin small {
+  display: block;
+  margin-top: 4px;
+}
+
+.selected-coin button {
+  background: transparent;
+  border: 0;
+  text-decoration: underline;
+  cursor: pointer;
+  font-size: 10px;
+}
+
+.rule-builder {
+  border: 1px solid var(--line);
+  margin: 12px 0;
+}
+
+.rule-builder-heading {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 13px;
+  border-bottom: 1px solid var(--line);
+}
+
+.rule-icon {
+  width: 31px;
+  height: 31px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--sea-pale);
+}
+
+.rule-builder.sell .rule-icon {
+  background: #f6dcd4;
+  color: var(--coral-dark);
+}
+
+.rule-builder-heading strong {
+  display: block;
+  font-size: 12px;
+}
+
+.rule-builder-heading small {
+  color: var(--ink-soft);
+  font-size: 9px;
+}
+
+.sentence-rule {
+  min-height: 61px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 11px 13px;
+  font-size: 13px;
+  flex-wrap: wrap;
+}
+
+.sentence-rule input,
+.sentence-rule select {
+  border: 0;
+  border-bottom: 1px solid var(--ink);
+  background: transparent;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11px;
+  padding: 7px 5px;
+}
+
+.sentence-rule input {
+  width: 67px;
+}
+
+.field-group {
+  padding: 10px 0;
+}
+
+.field-label {
+  display: block;
+  font-size: 10px;
+  font-weight: 700;
+  margin-bottom: 7px;
+}
+
+.segmented {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border: 1px solid var(--line);
+  padding: 3px;
+}
+
+.segmented button {
+  min-height: 38px;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 650;
+}
+
+.segmented button.selected {
+  background: var(--ink);
+  color: white;
+}
+
+.purchase-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 10px;
+  padding: 13px;
+  border: 1px solid var(--line);
+  margin: 10px 0;
+}
+
+.purchase-fields label {
+  display: block;
+}
+
+.purchase-fields label>span {
+  display: block;
+  font-size: 9px;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.purchase-fields em {
+  color: var(--ink-soft);
+  font-weight: 400;
+}
+
+.purchase-fields input {
+  width: 100%;
+  height: 40px;
+  border: 1px solid var(--line);
+  background: transparent;
+  padding: 0 10px;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11px;
+}
+
+.interval-field {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 15px;
+  align-items: center;
+  padding: 13px 0;
+}
+
+.interval-field strong,
+.interval-field small {
+  display: block;
+}
+
+.interval-field strong {
+  font-size: 11px;
+}
+
+.interval-field small {
+  color: var(--ink-soft);
+  font-size: 9px;
+  margin-top: 3px;
+}
+
+.interval-field select {
+  border: 1px solid var(--line);
+  background: transparent;
+  padding: 9px;
+  font-size: 10px;
+}
+
+.modal-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  margin-top: 8px;
+}
+
+.form-error {
+  color: var(--coral-dark);
+  padding: 9px 11px;
+  margin: 10px 0;
+  background: rgba(255, 114, 86, .09);
+  border-left: 3px solid var(--coral);
+  font-size: 10px;
+}
+
+.dialog-copy {
+  padding: 0 27px;
+  color: var(--ink-soft);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.compact .purchase-fields,
+.compact .modal-actions {
+  margin-left: 27px;
+  margin-right: 27px;
+}
+
+.compact .modal-actions {
+  margin-bottom: 27px;
+}
+
+@media (max-width: 620px) {
+  .modal-backdrop {
+    padding: 0;
+    align-items: end;
+  }
+
+  .modal-sheet {
+    width: 100%;
+    max-height: 92vh;
+    border-left: 0;
+    border-right: 0;
+    border-bottom: 0;
+    box-shadow: none;
+    border-radius: 18px 18px 0 0;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .modal-header {
+    padding: 21px 18px 17px;
+  }
+
+  .coin-picker,
+  .rule-form {
+    padding: 18px;
+  }
+
+  .sentence-rule {
+    align-items: baseline;
+  }
+
+  .purchase-fields {
+    grid-template-columns: 1fr;
+  }
+
+  .interval-field {
+    grid-template-columns: 1fr;
+  }
+
+  .modal-actions {
+    position: sticky;
+    bottom: 0;
+    background: var(--white);
+    padding-bottom: 3px;
+  }
+
+  .compact .purchase-fields,
+  .compact .modal-actions {
+    margin-left: 18px;
+    margin-right: 18px;
+  }
+
+  .dialog-copy {
+    padding: 0 18px;
+  }
+}
