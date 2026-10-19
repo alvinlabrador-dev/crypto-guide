@@ -1,5 +1,5 @@
 import { createClerkClient, verifyToken } from "@clerk/backend";
-import { emailIsAllowed, parseEmailAllowlist } from "../shared/allowlist";
+import { matchingAllowedEmail, parseEmailAllowlist } from "../shared/allowlist";
 
 export type ClerkEnv = {
   CLERK_PUBLISHABLE_KEY?: string;
@@ -49,7 +49,7 @@ async function pemFromJwks(jwksUrl: string, token: string): Promise<string> {
   return `-----BEGIN PUBLIC KEY-----\n${b64}\n-----END PUBLIC KEY-----`;
 }
 
-export async function assertClerkEmailAllowed(env: ClerkEnv, clerkToken: string, request: Request): Promise<void> {
+export async function assertClerkEmailAllowed(env: ClerkEnv, clerkToken: string, request: Request): Promise<string> {
   if (!env.CLERK_SECRET_KEY || !env.CLERK_PUBLISHABLE_KEY) {
     throw Object.assign(new Error("Clerk is not configured yet."), { status: 503 });
   }
@@ -88,7 +88,9 @@ export async function assertClerkEmailAllowed(env: ClerkEnv, clerkToken: string,
   if (emails.length === 0) {
     throw Object.assign(new Error("This Clerk account has no verified email address."), { status: 403 });
   }
-  if (!emailIsAllowed(emails, parseEmailAllowlist(env.ALLOWED_EMAILS))) {
+  const email = matchingAllowedEmail(emails, parseEmailAllowlist(env.ALLOWED_EMAILS));
+  if (!email) {
     throw Object.assign(new Error("This account is not allowed to use Driftline."), { status: 403 });
   }
+  return email;
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { emailIsAllowed, parseEmailAllowlist } from "./allowlist";
+import { emailIsAllowed, matchingAllowedEmail, parseEmailAllowlist } from "./allowlist";
 
 describe("parseEmailAllowlist", () => {
   it("splits comma-separated emails", () => {
@@ -17,6 +17,14 @@ describe("parseEmailAllowlist", () => {
   it("returns an empty set when unset", () => {
     expect(parseEmailAllowlist(undefined).size).toBe(0);
     expect(parseEmailAllowlist("").size).toBe(0);
+  });
+});
+
+describe("matchingAllowedEmail", () => {
+  it("returns the first verified email that is on the list", () => {
+    const allowlist = parseEmailAllowlist("alvinlabrador.dev@gmail.com, friend@x.com");
+    expect(matchingAllowedEmail(["other@x.com", "Friend@x.com"], allowlist)).toBe("friend@x.com");
+    expect(matchingAllowedEmail(["stranger@x.com"], allowlist)).toBeNull();
   });
 });
 

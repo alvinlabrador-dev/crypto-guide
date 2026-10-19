@@ -151,6 +151,7 @@ interface AlertRow {
   last_checked_at: string | null;
   created_at: string;
   updated_at: string;
+  owner_email: string;
 }
 
 interface EventRow {
@@ -181,6 +182,7 @@ interface AnnualHighCacheRow {
 
 interface SessionPayload {
   expiresAt: number;
+  email: string;
 }
 
 interface SweepNotification {
@@ -188,6 +190,7 @@ interface SweepNotification {
   body: string;
   tag: string;
   alertId: string;
+  ownerEmail: string;
 }
 
 class HttpError extends Error {
@@ -254,24 +257,30 @@ async function secureEqual(first: string, second: string): Promise<boolean> {
   return difference === 0;
 }
 
-async function createSession(secret: string): Promise<string> {
-  const payload: SessionPayload = { expiresAt: Date.now() + SESSION_SECONDS * 1000 };
+async function createSession(secret: string, email: string): Promise<string> {
+  const payload: SessionPayload = { expiresAt: Date.now() + SESSION_SECONDS * 1000, email };
   const encoded = base64UrlEncode(JSON.stringify(payload));
   return `${encoded}.${await hmac(encoded, secret)}`;
 }
 
-async function verifySession(token: string | null, secret: string | undefined): Promise<boolean> {
-  if (!token || !secret) return false;
+async function verifySession(token: string | null, secret: string | undefined): Promise<string | null> {
+  if (!token || !secret) return null;
   const [encoded, signature] = token.split(".");
-  if (!encoded || !signature) return false;
+  if (!encoded || !signature) return null;
   const expected = await hmac(encoded, secret);
-  if (!(await secureEqual(signature, expected))) return false;
+  if (!(await secureEqual(signature, expected))) return null;
   try {
     const parsed = JSON.parse(base64UrlDecode(encoded)) as Partial<SessionPayload>;
-    return typeof parsed.expiresAt === "number" && parsed.expiresAt > Date.now();
+    if (typeof parsed.expiresAt !== "number" || parsed.expiresAt <= Date.now()) return null;
+    if (typeof parsed.email !== "string" || !parsed.email.includes("@")) return null;
+    return parsed.email;
   } catch {
-    return false;
+    return null;
   }
+}
+
+function sweepKey(email: string): string {
+  return `last_sweep:${email}`;
 }
 
 function isLocalHttpHost(host: string): boolean {
@@ -486,23 +495,24 @@ async function getAnnualHighHistory(env: Env, alert: AlertRow): Promise<AnnualHi
   return { rows, source: "Yahoo Finance", sourceSymbol: result.meta.symbol, fetchedAt };
 }
 
-async function getAlert(env: Env, id: string): Promise<AlertRow> {
-  const row = await env.DB.prepare("SELECT * FROM alerts WHERE id = ?").bind(id).first<AlertRow>();
+async function getAlert(env: Env, id: string, email: string): Promise<AlertRow> {
+  const row = await env.DB.prepare("SELECT * FROM alerts WHERE id = ? AND owner_email = ?").bind(id, email).first<AlertRow>();
   if (!row) throw new HttpError(404, "Alert was not found.");
   return row;
 }
 
-async function getBootstrap(env: Env): Promise<BootstrapData> {
+async function getBootstrap(env: Env, email: string): Promise<BootstrapData> {
   const [alertsResult, eventsResult, lastSweep] = await Promise.all([
-    env.DB.prepare("SELECT * FROM alerts ORDER BY created_at DESC").all<AlertRow>(),
+    env.DB.prepare("SELECT * FROM alerts WHERE owner_email = ? ORDER BY created_at DESC").bind(email).all<AlertRow>(),
     env.DB.prepare(`
       SELECT e.*, a.name AS coin_name, a.symbol AS coin_symbol
       FROM alert_events e
       JOIN alerts a ON a.id = e.alert_id
+      WHERE a.owner_email = ?
       ORDER BY e.created_at DESC
       LIMIT 50
-    `).all<EventRow>(),
-    env.DB.prepare("SELECT value FROM app_settings WHERE key = 'last_sweep'").first<{ value: string }>(),
+    `).bind(email).all<EventRow>(),
+    env.DB.prepare("SELECT value FROM app_settings WHERE key = ?").bind(sweepKey(email)).first<{ value: string }>(),
   ]);
   return {
     alerts: alertsResult.results.map(alertFromRow),
@@ -513,9 +523,9 @@ async function getBootstrap(env: Env): Promise<BootstrapData> {
   };
 }
 
-async function sendPush(env: Env, notification: SweepNotification): Promise<number> {
+async function sendPush(env: Env, notification: SweepNotification, ownerEmail: string): Promise<number> {
   if (!env.VAPID_PUBLIC_KEY || !env.VAPID_PRIVATE_KEY || !env.VAPID_SUBJECT) return 0;
-  const subscriptions = await env.DB.prepare("SELECT endpoint, p256dh, auth FROM push_subscriptions").all<PushRow>();
+  const subscriptions = await env.DB.prepare("SELECT endpoint, p256dh, auth FROM push_subscriptions WHERE owner_email = ?").bind(ownerEmail).all<PushRow>();
   if (subscriptions.results.length === 0) return 0;
 
   webpush.setVapidDetails(env.VAPID_SUBJECT, env.VAPID_PUBLIC_KEY, env.VAPID_PRIVATE_KEY);
@@ -619,16 +629,19 @@ async function runSweep(env: Env): Promise<{ checked: number; signaled: number; 
         body: `${alert.name} is ${formatUsd(price)}. Target ${formatUsd(target)} has been reached.`,
         tag: `${eventType}-${alert.id}`,
         alertId: alert.id,
+        ownerEmail: alert.owner_email,
       });
     }
   }
 
-  statements.push(env.DB.prepare(`
-    INSERT INTO app_settings (key, value, updated_at) VALUES ('last_sweep', ?, ?)
-    ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
-  `).bind(checkedAt, checkedAt));
+  for (const ownerEmail of new Set(dueAlerts.map((alert) => alert.owner_email))) {
+    statements.push(env.DB.prepare(`
+      INSERT INTO app_settings (key, value, updated_at) VALUES (?, ?, ?)
+      ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
+    `).bind(sweepKey(ownerEmail), checkedAt, checkedAt));
+  }
   await env.DB.batch(statements);
-  await Promise.all(notifications.map((notification) => sendPush(env, notification)));
+  await Promise.all(notifications.map((notification) => sendPush(env, notification, notification.ownerEmail)));
 
   console.log(JSON.stringify({ message: "price sweep complete", checked: dueAlerts.length, signaled: notifications.length, checkedAt }));
   return { checked: dueAlerts.length, signaled: notifications.length, checkedAt };
@@ -666,9 +679,9 @@ async function routeApi(request: Request, env: Env, ctx: ExecutionContext): Prom
   assertSameOrigin(request, env);
 
   if (url.pathname === "/api/auth/session" && request.method === "GET") {
-    const authenticated = await verifySession(getCookie(request, SESSION_COOKIE), env.SESSION_SECRET);
+    const email = await verifySession(getCookie(request, SESSION_COOKIE), env.SESSION_SECRET);
     return json({
-      authenticated,
+      authenticated: Boolean(email),
       configured: clerkAuthConfigured(env),
       clerkPublishableKey: env.CLERK_PUBLISHABLE_KEY ?? null,
     });
@@ -682,15 +695,16 @@ async function routeApi(request: Request, env: Env, ctx: ExecutionContext): Prom
       await recordLoginFailure(env, ipHash);
       throw new HttpError(401, "Clerk session is missing.");
     }
+    let email: string;
     try {
-      await assertClerkEmailAllowed(env, input.data.clerkToken, request);
+      email = await assertClerkEmailAllowed(env, input.data.clerkToken, request);
     } catch (error) {
       await recordLoginFailure(env, ipHash);
       const status = typeof error === "object" && error && "status" in error && typeof error.status === "number" ? error.status : 401;
       throw new HttpError(status, error instanceof Error ? error.message : "Sign-in failed.");
     }
     await env.DB.prepare("DELETE FROM login_attempts WHERE ip_hash = ?").bind(ipHash).run();
-    const token = await createSession(env.SESSION_SECRET);
+    const token = await createSession(env.SESSION_SECRET, email);
     return json({ authenticated: true }, {
       headers: {
         "Set-Cookie": sessionCookie(token, request, SESSION_SECONDS),
@@ -704,12 +718,13 @@ async function routeApi(request: Request, env: Env, ctx: ExecutionContext): Prom
     });
   }
 
-  if (!(await verifySession(getCookie(request, SESSION_COOKIE), env.SESSION_SECRET))) {
+  const email = await verifySession(getCookie(request, SESSION_COOKIE), env.SESSION_SECRET);
+  if (!email) {
     throw new HttpError(401, "Sign in to continue.");
   }
 
   if (url.pathname === "/api/bootstrap" && request.method === "GET") {
-    return json(await getBootstrap(env));
+    return json(await getBootstrap(env, email));
   }
 
   if (url.pathname === "/api/coins/search" && request.method === "GET") {
@@ -730,23 +745,23 @@ async function routeApi(request: Request, env: Env, ctx: ExecutionContext): Prom
         buy_reference, buy_offset, buy_percent,
         sell_reference, sell_offset, sell_percent,
         purchase_price, purchase_quantity, purchase_date,
-        status, enabled, check_interval_minutes, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, 'usd', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?)
+        status, enabled, check_interval_minutes, owner_email, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, 'usd', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?)
     `).bind(
       id, value.coinId, value.symbol.toUpperCase(), value.name, value.imageUrl ?? null,
       value.buyRule.reference, value.buyRule.offset, value.buyRule.percent,
       value.sellRule.reference, value.sellRule.offset, value.sellRule.percent,
       value.purchasePrice ?? null, value.purchaseQuantity ?? null, value.purchaseDate ?? null,
-      value.trackFrom, value.checkIntervalMinutes, now, now,
+      value.trackFrom, value.checkIntervalMinutes, email, now, now,
     ).run();
     ctx.waitUntil(runSweep(env).catch((error: unknown) => {
       console.error(JSON.stringify({ message: "post-create sweep failed", error: error instanceof Error ? error.message : String(error) }));
     }));
-    return json({ alert: alertFromRow(await getAlert(env, id)) }, { status: 201 });
+    return json({ alert: alertFromRow(await getAlert(env, id, email)) }, { status: 201 });
   }
 
   if (url.pathname === "/api/refresh" && request.method === "POST") {
-    await env.DB.prepare("UPDATE alerts SET last_checked_at = NULL WHERE enabled = 1").run();
+    await env.DB.prepare("UPDATE alerts SET last_checked_at = NULL WHERE enabled = 1 AND owner_email = ?").bind(email).run();
     return json(await runSweep(env));
   }
 
@@ -755,17 +770,17 @@ async function routeApi(request: Request, env: Env, ctx: ExecutionContext): Prom
     if (!input.success) throw new HttpError(400, "Push subscription is invalid.");
     const now = new Date().toISOString();
     await env.DB.prepare(`
-      INSERT INTO push_subscriptions (endpoint, p256dh, auth, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?)
-      ON CONFLICT(endpoint) DO UPDATE SET p256dh = excluded.p256dh, auth = excluded.auth, updated_at = excluded.updated_at
-    `).bind(input.data.endpoint, input.data.keys.p256dh, input.data.keys.auth, now, now).run();
+      INSERT INTO push_subscriptions (endpoint, p256dh, auth, owner_email, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?)
+      ON CONFLICT(endpoint) DO UPDATE SET p256dh = excluded.p256dh, auth = excluded.auth, owner_email = excluded.owner_email, updated_at = excluded.updated_at
+    `).bind(input.data.endpoint, input.data.keys.p256dh, input.data.keys.auth, email, now, now).run();
     return json({ subscribed: true });
   }
 
   if (url.pathname === "/api/push/subscribe" && request.method === "DELETE") {
     const input = z.object({ endpoint: z.string().url().max(2048) }).safeParse(await parseJson(request));
     if (!input.success) throw new HttpError(400, "Push subscription is invalid.");
-    await env.DB.prepare("DELETE FROM push_subscriptions WHERE endpoint = ?").bind(input.data.endpoint).run();
+    await env.DB.prepare("DELETE FROM push_subscriptions WHERE endpoint = ? AND owner_email = ?").bind(input.data.endpoint, email).run();
     return json({ subscribed: false });
   }
 
@@ -775,7 +790,8 @@ async function routeApi(request: Request, env: Env, ctx: ExecutionContext): Prom
       body: "Push notifications are ready for buy and sell signals.",
       tag: "driftline-test",
       alertId: "",
-    });
+      ownerEmail: email,
+    }, email);
     return json({ delivered });
   }
 
@@ -786,7 +802,7 @@ async function routeApi(request: Request, env: Env, ctx: ExecutionContext): Prom
     if (!id) throw new HttpError(400, "Alert id is invalid.");
 
     if (!action && request.method === "PATCH") {
-      const current = await getAlert(env, id);
+      const current = await getAlert(env, id, email);
       const input = updateAlertSchema.safeParse(await parseJson(request));
       if (!input.success) throw new HttpError(400, input.error.issues[0]?.message ?? "Alert details are invalid.");
       const buyRule = input.data.buyRule ?? { reference: current.buy_reference, offset: current.buy_offset, percent: current.buy_percent };
@@ -806,16 +822,16 @@ async function routeApi(request: Request, env: Env, ctx: ExecutionContext): Prom
         sellRule.reference, sellRule.offset, sellRule.percent,
         input.data.checkIntervalMinutes ?? current.check_interval_minutes, now, id,
       ).run();
-      return json({ alert: alertFromRow(await getAlert(env, id)) });
+      return json({ alert: alertFromRow(await getAlert(env, id, email)) });
     }
 
     if (!action && request.method === "DELETE") {
-      await getAlert(env, id);
+      await getAlert(env, id, email);
       await env.DB.prepare("DELETE FROM alerts WHERE id = ?").bind(id).run();
       return json({ deleted: true });
     }
 
-    const alert = await getAlert(env, id);
+    const alert = await getAlert(env, id, email);
     const now = new Date().toISOString();
     if (action === "annual-highs" && request.method === "GET") {
       return json(await getAnnualHighHistory(env, alert));
@@ -834,7 +850,7 @@ async function routeApi(request: Request, env: Env, ctx: ExecutionContext): Prom
           VALUES (?, ?, 'purchase_recorded', ?, ?, ?)
         `).bind(crypto.randomUUID(), id, input.data.price, `Purchase recorded at ${formatUsd(input.data.price)}.`, now),
       ]);
-      return json({ alert: alertFromRow(await getAlert(env, id)) });
+      return json({ alert: alertFromRow(await getAlert(env, id, email)) });
     }
 
     if (action === "mark-sold" && request.method === "POST") {
@@ -851,7 +867,7 @@ async function routeApi(request: Request, env: Env, ctx: ExecutionContext): Prom
           VALUES (?, ?, 'sold', ?, ?, ?)
         `).bind(crypto.randomUUID(), id, sale.data.price ?? alert.last_price, "Position marked sold; buy watch re-armed.", now),
       ]);
-      return json({ alert: alertFromRow(await getAlert(env, id)) });
+      return json({ alert: alertFromRow(await getAlert(env, id, email)) });
     }
 
     if (action === "rearm" && request.method === "POST") {
@@ -859,7 +875,7 @@ async function routeApi(request: Request, env: Env, ctx: ExecutionContext): Prom
         env.DB.prepare("UPDATE alerts SET status = 'watching_buy', enabled = 1, resume_status = NULL, last_checked_at = NULL, updated_at = ? WHERE id = ?").bind(now, id),
         env.DB.prepare("INSERT INTO alert_events (id, alert_id, event_type, note, created_at) VALUES (?, ?, 'rearmed', 'Buy watch re-armed.', ?)").bind(crypto.randomUUID(), id, now),
       ]);
-      return json({ alert: alertFromRow(await getAlert(env, id)) });
+      return json({ alert: alertFromRow(await getAlert(env, id, email)) });
     }
 
     if (action === "pause" && request.method === "POST") {
@@ -867,14 +883,14 @@ async function routeApi(request: Request, env: Env, ctx: ExecutionContext): Prom
         await env.DB.prepare("UPDATE alerts SET status = 'paused', resume_status = ?, enabled = 0, updated_at = ? WHERE id = ?")
           .bind(alert.status, now, id).run();
       }
-      return json({ alert: alertFromRow(await getAlert(env, id)) });
+      return json({ alert: alertFromRow(await getAlert(env, id, email)) });
     }
 
     if (action === "resume" && request.method === "POST") {
       const resumeStatus = alert.resume_status ?? "watching_buy";
       await env.DB.prepare("UPDATE alerts SET status = ?, resume_status = NULL, enabled = 1, last_checked_at = NULL, updated_at = ? WHERE id = ?")
         .bind(resumeStatus, now, id).run();
-      return json({ alert: alertFromRow(await getAlert(env, id)) });
+      return json({ alert: alertFromRow(await getAlert(env, id, email)) });
     }
   }
 
