@@ -1,6 +1,7 @@
 import webpush from "web-push";
 import { z } from "zod";
 import { calculateTarget } from "../shared/rules";
+import { assertClerkEmailAllowed, clerkAuthConfigured } from "./clerk";
 import type {
   Alert,
   AlertEvent,
@@ -666,16 +667,27 @@ async function routeApi(request: Request, env: Env, ctx: ExecutionContext): Prom
 
   if (url.pathname === "/api/auth/session" && request.method === "GET") {
     const authenticated = await verifySession(getCookie(request, SESSION_COOKIE), env.SESSION_SECRET);
-    return json({ authenticated, configured: Boolean(env.APP_PASSWORD && env.SESSION_SECRET) });
+    return json({
+      authenticated,
+      configured: clerkAuthConfigured(env),
+      clerkPublishableKey: env.CLERK_PUBLISHABLE_KEY ?? null,
+    });
   }
 
   if (url.pathname === "/api/auth/login" && request.method === "POST") {
-    if (!env.APP_PASSWORD || !env.SESSION_SECRET) throw new HttpError(503, "App login is not configured yet.");
+    if (!clerkAuthConfigured(env) || !env.SESSION_SECRET) throw new HttpError(503, "App login is not configured yet.");
     const ipHash = await checkLoginRateLimit(request, env);
-    const input = z.object({ password: z.string().min(1).max(256) }).safeParse(await parseJson(request));
-    if (!input.success || !(await secureEqual(input.data.password, env.APP_PASSWORD))) {
+    const input = z.object({ clerkToken: z.string().min(1).max(8000) }).safeParse(await parseJson(request));
+    if (!input.success) {
       await recordLoginFailure(env, ipHash);
-      throw new HttpError(401, "Password is incorrect.");
+      throw new HttpError(401, "Clerk session is missing.");
+    }
+    try {
+      await assertClerkEmailAllowed(env, input.data.clerkToken, request);
+    } catch (error) {
+      await recordLoginFailure(env, ipHash);
+      const status = typeof error === "object" && error && "status" in error && typeof error.status === "number" ? error.status : 401;
+      throw new HttpError(status, error instanceof Error ? error.message : "Sign-in failed.");
     }
     await env.DB.prepare("DELETE FROM login_attempts WHERE ip_hash = ?").bind(ipHash).run();
     const token = await createSession(env.SESSION_SECRET);
