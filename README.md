@@ -40,14 +40,17 @@ Pushing to `master` deploys production through GitHub Actions. The workflow buil
 
 GitHub secrets required:
 
-- `CLOUDFLARE_API_TOKEN` with the **Edit Cloudflare Workers** template, scoped to this account
-- `CLOUDFLARE_ACCOUNT_ID` set to `7e7ad11e97950b3eaf40c537fa40a8b5`
+- `CLOUDFLARE_API_TOKEN` scoped to account `7e7ad11e97950b3eaf40c537fa40a8b5`
 
-Create the token at [Cloudflare API tokens](https://dash.cloudflare.com/profile/api-tokens). Then:
+The **Edit Cloudflare Workers** template is not enough. D1 migrations need an extra permission. Create or edit the token at [Cloudflare API tokens](https://dash.cloudflare.com/profile/api-tokens) with:
+
+- Account, Cloudflare Workers, Edit
+- Account, D1, Edit
+
+Then:
 
 ```powershell
 gh secret set CLOUDFLARE_API_TOKEN
-gh secret set CLOUDFLARE_ACCOUNT_ID
 ```
 
 Worker Clerk, allowlist, session, and VAPID secrets stay in the Cloudflare Worker. The workflow does not upload them. Rotate those only when needed:
