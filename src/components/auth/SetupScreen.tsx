@@ -7,7 +7,7 @@ export function SetupScreen() {
       <LogoMark />
       <p className="eyebrow">ONE LAST CONNECTION</p>
       <h1>Server secrets are not configured.</h1>
-      <p>Set <code>APP_PASSWORD</code> and <code>SESSION_SECRET</code> with Wrangler, then reload this page.</p>
+      <p>Set <code>CLERK_PUBLISHABLE_KEY</code>, <code>CLERK_SECRET_KEY</code>, <code>ALLOWED_EMAILS</code>, and <code>SESSION_SECRET</code> with Wrangler, then reload this page.</p>
     </div>
   );
 }

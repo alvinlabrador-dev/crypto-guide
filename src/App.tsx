@@ -1,3 +1,4 @@
+import { ClerkProvider, useClerk } from "@clerk/react";
 import { useCallback, useEffect, useState } from "react";
 import { api, ApiError } from "./api";
 import { LoginScreen } from "./components/auth/LoginScreen";
@@ -16,6 +17,8 @@ import { base64UrlToArrayBuffer } from "./lib/push";
 import type { AuthState, BeforeInstallPromptEvent, Toast } from "./types";
 import type { Alert, BootstrapData } from "../shared/types";
 
+const viteClerkPublishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY?.trim() || null;
+
 const emptyBootstrap: BootstrapData = {
   alerts: [],
   events: [],
@@ -26,6 +29,7 @@ const emptyBootstrap: BootstrapData = {
 
 function App() {
   const [auth, setAuth] = useState<AuthState>("loading");
+  const [clerkPublishableKey, setClerkPublishableKey] = useState<string | null>(null);
   const [data, setData] = useState<BootstrapData>(emptyBootstrap);
   const [busy, setBusy] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -51,7 +55,8 @@ function App() {
   useEffect(() => {
     const initialize = async () => {
       try {
-        const session = await api<{ authenticated: boolean; configured: boolean }>("/api/auth/session");
+        const session = await api<{ authenticated: boolean; configured: boolean; clerkPublishableKey: string | null }>("/api/auth/session");
+        setClerkPublishableKey(session.clerkPublishableKey || viteClerkPublishableKey);
         if (!session.configured) {
           setAuth("unconfigured");
           return;
@@ -171,19 +176,6 @@ function App() {
     setInstallPrompt(null);
   };
 
-  const signOut = async () => {
-    setBusy(true);
-    try {
-      await api("/api/auth/logout", { method: "POST", body: "{}" });
-      setAuth("signed-out");
-      notify("Signed out.");
-    } catch (error) {
-      notify(error instanceof Error ? error.message : "Could not sign out.", "error");
-    } finally {
-      setBusy(false);
-    }
-  };
-
   const showActivity = () => {
     setHistoryOpen(true);
     setActivityFlash(true);
@@ -197,18 +189,20 @@ function App() {
   };
 
   if (auth === "loading") return <LoadingScreen />;
-  if (auth === "unconfigured") return <SetupScreen />;
-  if (auth === "signed-out") {
-    return <LoginScreen onSignedIn={async () => { setAuth("signed-in"); await loadBootstrap(); }} notify={notify} />;
-  }
+  if (auth === "unconfigured" || !clerkPublishableKey) return <SetupScreen />;
 
   const activeCount = data.alerts.filter((alert) => alert.status !== "paused").length;
   const signalCount = data.alerts.filter((alert) => ["buy_alerted", "sell_alerted"].includes(alert.status)).length;
 
-  return (
+  const sessionView = auth === "signed-out" ? (
+    <>
+      <LoginScreen onSignedIn={async () => { setAuth("signed-in"); await loadBootstrap(); }} notify={notify} />
+      <ToastStack toasts={toasts} />
+    </>
+  ) : (
     <div className="app-shell">
       <div className="ambient-grid" aria-hidden="true" />
-      <Topbar busy={busy} onInstall={() => void install()} onShowActivity={showActivity} onSignOut={() => void signOut()} />
+      <SignedInTopbar busy={busy} onInstall={() => void install()} onShowActivity={showActivity} onSignedOut={() => setAuth("signed-out")} notify={notify} />
 
       <main>
         <CommandDeck lastSweep={data.lastSweep} busy={busy} onRefresh={() => void refresh()} />
@@ -281,6 +275,45 @@ function App() {
 
       <ToastStack toasts={toasts} />
     </div>
+  );
+
+  return (
+    <ClerkProvider publishableKey={clerkPublishableKey} afterSignOutUrl="/">
+      {sessionView}
+    </ClerkProvider>
+  );
+}
+
+function SignedInTopbar({
+  busy,
+  onInstall,
+  onShowActivity,
+  onSignedOut,
+  notify,
+}: {
+  busy: boolean;
+  onInstall: () => void;
+  onShowActivity: () => void;
+  onSignedOut: () => void;
+  notify: (message: string, tone?: Toast["tone"]) => void;
+}) {
+  const { signOut } = useClerk();
+  return (
+    <Topbar
+      busy={busy}
+      onInstall={onInstall}
+      onShowActivity={onShowActivity}
+      onSignOut={() => void (async () => {
+        try {
+          await api("/api/auth/logout", { method: "POST", body: "{}" });
+          await signOut();
+          onSignedOut();
+          notify("Signed out.");
+        } catch (error) {
+          notify(error instanceof Error ? error.message : "Could not sign out.", "error");
+        }
+      })()}
+    />
   );
 }
 

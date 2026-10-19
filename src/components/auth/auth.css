@@ -134,7 +134,7 @@
 }
 
 .login-card {
-  width: min(390px, calc(100% - 50px));
+  width: min(420px, calc(100% - 50px));
   margin: auto;
 }
 
@@ -180,6 +180,16 @@
   margin-top: 19px;
   color: var(--ink-soft);
   font-size: 9px;
+}
+
+.login-status {
+  margin: 18px 0 8px;
+  color: var(--ink-soft);
+  font-size: 13px;
+}
+
+.login-card .cl-rootBox {
+  margin-top: 8px;
 }
 
 @media (max-width: 900px) {
