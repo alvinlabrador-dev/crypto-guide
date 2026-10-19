@@ -21,30 +21,55 @@ Requirements: Node.js 20+, npm, and a Cloudflare account.
 npm install
 Copy-Item .dev.vars.example .dev.vars
 npm run check
-npm run build
-npm run dev:worker
 ```
 
-Set a strong `APP_PASSWORD` and a long random `SESSION_SECRET` in `.dev.vars`. The app is then available at the local URL printed by Wrangler. `.dev.vars` is ignored by Git.
+Set `SESSION_SECRET`, Clerk keys, and `ALLOWED_EMAILS` in `.dev.vars`. `ALLOWED_EMAILS` is a comma-separated allowlist of verified emails. Phone sign-in still needs one of those emails on the Clerk user. `.dev.vars` is ignored by Git.
+
+Then run the Worker and the Vite app in two terminals:
+
+```powershell
+npm run dev:worker
+npm run dev
+```
+
+Open the Vite URL (usually `http://localhost:5173`). Enable email and phone in the [Clerk Dashboard](https://dashboard.clerk.com/). Add `http://localhost:5173` and `https://driftline.alvinlabrador.dev` as allowed origins.
 
 ## Cloudflare deployment
 
-This directory is bound to the `crypto-guide` Wrangler auth profile. To create or switch that binding later:
+Pushing to `master` deploys production through GitHub Actions. The workflow builds the frontend, applies pending D1 migrations, and runs `wrangler deploy` to [driftline.alvinlabrador.dev](https://driftline.alvinlabrador.dev).
+
+GitHub secrets required:
+
+- `CLOUDFLARE_API_TOKEN` with the **Edit Cloudflare Workers** template, scoped to this account
+- `CLOUDFLARE_ACCOUNT_ID` set to `7e7ad11e97950b3eaf40c537fa40a8b5`
+
+Create the token at [Cloudflare API tokens](https://dash.cloudflare.com/profile/api-tokens). Then:
+
+```powershell
+gh secret set CLOUDFLARE_API_TOKEN
+gh secret set CLOUDFLARE_ACCOUNT_ID
+```
+
+Worker Clerk, allowlist, session, and VAPID secrets stay in the Cloudflare Worker. The workflow does not upload them. Rotate those only when needed:
+
+```powershell
+node scripts/configure-secrets.mjs https://driftline.alvinlabrador.dev
+```
+
+That script reads Clerk keys from `.env` or `.dev.vars` and uploads them with `wrangler secret put`. It does not rotate VAPID or `SESSION_SECRET`. It only uploads `ALLOWED_EMAILS` when that value is present in those files. You can also set one secret at a time:
+
+```powershell
+npx wrangler secret put ALLOWED_EMAILS
+```
+
+Manual deploy from this machine still works. This directory is bound to the `crypto-guide` Wrangler auth profile:
 
 ```powershell
 npx wrangler auth create crypto-guide
 npx wrangler auth activate crypto-guide "D:\remote-projects\online-income\crypto-guide"
-```
-
-The D1 database and migration are declared in `wrangler.jsonc` and `migrations/`. Deploy with:
-
-```powershell
 npx wrangler d1 migrations apply driftline-db --remote
 npm run deploy
-node scripts/configure-secrets.mjs https://your-live-worker.workers.dev
 ```
-
-The secret helper reads the password/session values from `.dev.vars`, creates a fresh VAPID key pair, and uploads secrets without printing their values.
 
 ## Market data and scheduling
 
@@ -58,5 +83,5 @@ Browser push requires HTTPS and notification permission. On iPhone/iPad, install
 npm run check       # TypeScript and tests
 npm run build       # Production frontend
 npm run deploy:dry  # Build and validate the Worker bundle
-npm run deploy      # Deploy to the bound Cloudflare account
+npm run deploy      # Manual deploy to the bound Cloudflare account
 ```

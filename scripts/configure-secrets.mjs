@@ -1,46 +1,52 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, existsSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import webpush from "web-push";
 
-const subject = process.argv[2];
-if (!subject || !/^https:\/\//.test(subject)) {
-  throw new Error("Usage: node scripts/configure-secrets.mjs https://your-worker.example");
+function parseEnvFile(path) {
+  if (!existsSync(path)) return {};
+  return Object.fromEntries(
+    readFileSync(path, "utf8")
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter((line) => line && !line.startsWith("#") && line.includes("="))
+      .map((line) => {
+        const separator = line.indexOf("=");
+        const key = line.slice(0, separator).trim();
+        let value = line.slice(separator + 1).trim();
+        if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+          value = value.slice(1, -1);
+        }
+        return [key, value];
+      }),
+  );
 }
 
-const values = Object.fromEntries(
-  readFileSync(new URL("../.dev.vars", import.meta.url), "utf8")
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter((line) => line && !line.startsWith("#") && line.includes("="))
-    .map((line) => {
-      const separator = line.indexOf("=");
-      const key = line.slice(0, separator).trim();
-      let value = line.slice(separator + 1).trim();
-      if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
-        value = value.slice(1, -1);
-      }
-      return [key, value];
-    }),
-);
-
-for (const required of ["APP_PASSWORD", "SESSION_SECRET"]) {
-  if (!values[required]) throw new Error(`${required} is missing from .dev.vars`);
-}
-
-const vapid = webpush.generateVAPIDKeys();
-const secrets = {
-  APP_PASSWORD: values.APP_PASSWORD,
-  SESSION_SECRET: values.SESSION_SECRET,
-  VAPID_PUBLIC_KEY: vapid.publicKey,
-  VAPID_PRIVATE_KEY: vapid.privateKey,
-  VAPID_SUBJECT: subject,
+const root = new URL("..", import.meta.url);
+const values = {
+  ...parseEnvFile(fileURLToPath(new URL(".dev.vars", root))),
+  ...parseEnvFile(fileURLToPath(new URL(".env", root))),
 };
 
+const publishable = values.CLERK_PUBLISHABLE_KEY || values.VITE_CLERK_PUBLISHABLE_KEY;
+const secrets = {
+  CLERK_PUBLISHABLE_KEY: publishable,
+  CLERK_SECRET_KEY: values.CLERK_SECRET_KEY,
+  CLERK_FE_URL: values.CLERK_FE_URL,
+  CLERK_BE_URL: values.CLERK_BE_URL,
+  CLERK_JWKS_URL: values.CLERK_JWKS_URL,
+};
+
+for (const required of ["CLERK_PUBLISHABLE_KEY", "CLERK_SECRET_KEY"]) {
+  if (!secrets[required]) throw new Error(`${required} is missing from .env or .dev.vars`);
+}
+
+if (values.ALLOWED_EMAILS) secrets.ALLOWED_EMAILS = values.ALLOWED_EMAILS;
+
+const wrangler = fileURLToPath(new URL("node_modules/wrangler/bin/wrangler.js", root));
 for (const [name, value] of Object.entries(secrets)) {
-  const wrangler = fileURLToPath(new URL("../node_modules/wrangler/bin/wrangler.js", import.meta.url));
+  if (!value) continue;
   const result = spawnSync(process.execPath, [wrangler, "secret", "put", name], {
-    cwd: fileURLToPath(new URL("..", import.meta.url)),
+    cwd: fileURLToPath(root),
     input: `${value}\n`,
     encoding: "utf8",
     stdio: ["pipe", "pipe", "pipe"],

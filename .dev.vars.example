@@ -1,6 +1,11 @@
 LOCAL_DEV=1
-APP_PASSWORD=choose-a-local-password
 SESSION_SECRET=generate-a-long-random-value
+CLERK_PUBLISHABLE_KEY=pk_live_your_publishable_key
+CLERK_SECRET_KEY=sk_live_your_secret_key
+CLERK_FE_URL=https://clerk.yourdomain.com
+CLERK_BE_URL=https://api.clerk.com
+CLERK_JWKS_URL=https://clerk.yourdomain.com/.well-known/jwks.json
+ALLOWED_EMAILS=you@example.com
 VAPID_PUBLIC_KEY=
 VAPID_PRIVATE_KEY=
 VAPID_SUBJECT=mailto:you@example.com
