@@ -53,6 +53,7 @@ export function LoginScreen({ onSignedIn, notify }: LoginScreenProps) {
         ) : (
           <SignIn
             routing="hash"
+            oidcPrompt="select_account"
             fallbackRedirectUrl="/"
             appearance={{
               variables: {
